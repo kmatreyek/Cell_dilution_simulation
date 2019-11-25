@@ -1,0 +1,107 @@
+---
+title: "Counting_dilution_simulation"
+author: "Kenneth A. Matreyek"
+date: "11/24/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(tidyverse)
+library(reshape)
+```
+
+## Let's make some assumptions about the situation
+```{r First let's make some assumptions}
+## Counts in the hemacytometer showing level of non-uniformity (first time, Sarah's counts)
+pt1_ul_dispersion_1 <- c(21,13,20,36)
+pt1_ul_dispersion_1_mean <- mean(pt1_ul_dispersion_1)
+pt1_ul_dispersion_1_sd <- sd(pt1_ul_dispersion_1)
+pt1_ul_dispersion_1s_cv <- pt1_ul_dispersion_1_sd / pt1_ul_dispersion_1_mean
+
+## Counts in the hemacytometer showing level of non-uniformity (first time, my counts)
+pt1_ul_dispersion_2 <- c(31,25,18,36)
+pt1_ul_dispersion_2_mean <- mean(pt1_ul_dispersion_2)
+pt1_ul_dispersion_2_sd <- sd(pt1_ul_dispersion_2)
+pt1_ul_dispersion_2s_cv <- pt1_ul_dispersion_2_sd / pt1_ul_dispersion_2_mean
+
+## Counts in the hemacytometer showing level of non-uniformity 11/22/19
+pt1_ul_dispersion_3 <- c(27,22,49,36)
+pt1_ul_dispersion_3_mean <- mean(pt1_ul_dispersion_3)
+pt1_ul_dispersion_3_sd <- sd(pt1_ul_dispersion_3)
+pt1_ul_dispersion_3s_cv <- pt1_ul_dispersion_3_sd / pt1_ul_dispersion_3_mean
+
+combined_dispersion_mean <- mean(c(pt1_ul_dispersion_1_mean, pt1_ul_dispersion_2_mean, pt1_ul_dispersion_3_mean))
+combined_dispersion_sd <- mean(c(pt1_ul_dispersion_1_sd, pt1_ul_dispersion_2_sd, pt1_ul_dispersion_3_sd))
+combined_dispersion_cv <- mean(c(pt1_ul_dispersion_1s_cv, pt1_ul_dispersion_2s_cv, pt1_ul_dispersion_3s_cv))
+```
+
+```{r Look at what the distribution of cells is in 100 nl}
+ggplot() + theme_classic() + xlab("Number of cells") + ylab("Density") +
+  stat_function(data = data.frame(x = pt1_ul_dispersion_1), aes(x), fun = dnorm, n = 1000, args = list(mean = pt1_ul_dispersion_1_mean, sd = pt1_ul_dispersion_1_sd)) +
+  stat_function(data = data.frame(x = pt1_ul_dispersion_2), aes(x), fun = dnorm, n = 1000, args = list(mean = pt1_ul_dispersion_2_mean, sd = pt1_ul_dispersion_2_sd), color = "blue") +
+  stat_function(data = data.frame(x = pt1_ul_dispersion_3), aes(x), fun = dnorm, n = 1000, args = list(mean = pt1_ul_dispersion_3_mean, sd = pt1_ul_dispersion_3_sd), color = "red") +
+  scale_x_continuous(limits = c(0,60)) + scale_y_continuous(expand = c(0,0))
+```
+
+```{r Assuming the dilutions are a sampling of this see how it affects reproducibility}
+## Let's now pretend we're taking various amounts of cells
+
+ul_sample_10ul <- as.integer(rnorm(100, mean = combined_dispersion_mean, sd = combined_dispersion_sd))
+ul_sample_100ul <- as.integer(rnorm(1000, mean = combined_dispersion_mean, sd = combined_dispersion_sd))
+ul_sample_1000ul <- as.integer(rnorm(100000, mean = combined_dispersion_mean, sd = combined_dispersion_sd))
+
+ul_resampling_frame_10 <- data.frame("resampling" = rep(0,1000))
+for(x in (1:nrow(ul_resampling_frame_10))){
+  ul_sample_10 <- as.integer(rnorm(100, mean = combined_dispersion_mean, sd = combined_dispersion_sd))
+  ul_resampling_frame_10$resampling[x] <- mean(ul_sample_10)
+}
+
+ul_resampling_frame_100 <- data.frame("resampling" = rep(0,1000))
+for(x in (1:nrow(ul_resampling_frame_100))){
+  ul_sample_100 <- as.integer(rnorm(1000, mean = combined_dispersion_mean, sd = combined_dispersion_sd))
+  ul_resampling_frame_100$resampling[x] <- mean(ul_sample_100)
+}
+
+ul_resampling_frame_1000 <- data.frame("resampling" = rep(0,1000))
+for(x in (1:nrow(ul_resampling_frame_1000))){
+  ul_sample_1000 <- as.integer(rnorm(10000, mean = combined_dispersion_mean, sd = combined_dispersion_sd))
+  ul_resampling_frame_1000$resampling[x] <- mean(ul_sample_1000)
+}
+
+count_normalized_data_frame <- data.frame("pipet_10ul" = ul_resampling_frame_10$resampling,
+                                          "pipet_100ul" = ul_resampling_frame_100$resampling,
+                                          "pipet_1000ul" = ul_resampling_frame_1000$resampling)
+
+count_normalized_data_frame_melt <- melt(count_normalized_data_frame)
+colnames(count_normalized_data_frame_melt) <- c("condition","count")
+
+resampling_1000_density <- ggplot() + geom_density(data = ul_resampling_frame_1000, aes(x = resampling))
+resampling_1000_density_values <- ggplot_build(resampling_1000_density)
+resampling_1000_density_dataframe <- data.frame(resampling_1000_density_values$data)
+true_value <- resampling_1000_density_dataframe[resampling_1000_density_dataframe$y == max(resampling_1000_density_dataframe$y),"x"]
+
+ggplot() + theme_classic() + xlab("Cell count") + ylab("Density") +
+  geom_vline(xintercept = true_value) + 
+  geom_density(data = count_normalized_data_frame_melt, aes(x = count, fill = condition), alpha = 0.5) +
+  scale_x_continuous(limits = c(15,35), breaks = seq(15,35,2)) + scale_y_continuous(expand = c(0,0))
+```
+
+```{r Effect on plating}
+count_normalized_data_frame_melt$cell_count <- 250000 / (count_normalized_data_frame_melt$count * 10000) * (true_value * 10000)
+
+Cell_counting_dilution_plot <- ggplot() + theme_classic() + xlab("Cell count") + ylab("Density") +
+  geom_vline(xintercept = 250000) + geom_vline(xintercept = c(240000,260000), linetype = 2) +
+  theme(legend.position = "top") +
+  geom_density(data = count_normalized_data_frame_melt, aes(x = cell_count, fill = condition), alpha = 0.5) +
+   scale_y_continuous(expand = c(0,0)) + scale_x_continuous(limits = c(200000,300000))
+Cell_counting_dilution_plot
+
+paste("With a 10ul in 90ul 10x dilution, how many times would the number of cells plated only be off by more than 10k cells (240k to 260k)?:",round(nrow(count_normalized_data_frame_melt %>% filter(condition == "pipet_10ul" & abs((cell_count - 250000) > 10000))) / 
+  nrow(count_normalized_data_frame_melt %>% filter(condition == "pipet_10ul"))*100,1),"percent")
+
+paste("With a 100ul in 900ul 10x dilution, how many times would the number of cells plated only be off by more than 10k cells (240k to 260k)?:",round(nrow(count_normalized_data_frame_melt %>% filter(condition == "pipet_100ul" & abs((cell_count - 250000) > 10000))) / 
+  nrow(count_normalized_data_frame_melt %>% filter(condition == "pipet_100ul"))*100,1),"percent")
+
+```
