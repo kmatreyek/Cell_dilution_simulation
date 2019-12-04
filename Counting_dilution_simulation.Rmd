@@ -98,7 +98,7 @@ Cell_counting_dilution_plot <- ggplot() + theme_classic() + xlab("Cell count") +
   geom_density(data = count_normalized_data_frame_melt, aes(x = cell_count, fill = condition), alpha = 0.5) +
    scale_y_continuous(expand = c(0,0)) + scale_x_continuous(limits = c(100000,500000))
 Cell_counting_dilution_plot
-ggsave(file = "/Users/kmatreyek/Dropbox/Website/Plots/Cell_counting_dilution_plot.png", Cell_counting_dilution_plot, height = 4, width = 6)
+ggsave(file = "Cell_counting_dilution_plot.png", Cell_counting_dilution_plot, height = 4, width = 6)
 
 paste("With a 10ul in 90ul 10x dilution, how many times would the number of cells plated only be off by more than 10k cells (240k to 260k)?:",round(nrow(count_normalized_data_frame_melt %>% filter(condition == "pipet_10ul" & abs((cell_count - 250000) > 10000))) / 
   nrow(count_normalized_data_frame_melt %>% filter(condition == "pipet_10ul"))*100,1),"percent")
@@ -164,7 +164,7 @@ Cell_counting_dilution_plot2 <- ggplot() + theme_classic() + xlab("Cell count") 
   geom_density(data = count_normalized_data_frame_melt, aes(x = cell_count, fill = condition), alpha = 0.5) +
    scale_y_continuous(expand = c(0,0)) + scale_x_continuous(limits = c(100000,500000))
 Cell_counting_dilution_plot2
-ggsave(file = "/Users/kmatreyek/Dropbox/Website/Plots/Cell_counting_dilution_plot2.png", Cell_counting_dilution_plot2, height = 4, width = 6)
+ggsave(file = "Cell_counting_dilution_plot2.png", Cell_counting_dilution_plot2, height = 4, width = 6)
 
 
 paste("With a 10ul in 90ul 10x dilution, how many times would the number of cells plated only be off by more than 10k cells (240k to 260k)?:",round(nrow(count_normalized_data_frame_melt %>% filter(condition == "pipet_10ul" & abs((cell_count - 250000) > 10000))) / 
